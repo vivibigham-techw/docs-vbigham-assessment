@@ -29,7 +29,7 @@ Explore examples of projects tracked and visualized with W&B in our [Gallery →
 
 ## Getting Started
 
-To start, install the wandb library via pip.
+To start, install the `wandb` library via pip.
 
 
 ```python
@@ -136,7 +136,7 @@ def model_pipeline(hyperparameters):
     return model
 ```
 
-Unlike a standard pipeline, `wandb.init` handles all the 
+The `wandb.init` function handles all the 
 initialization tasks. Calling this function sets up a line of communication
 between your code and our servers.
 
@@ -149,7 +149,8 @@ The line `config = run.config` creates a copy of your hyperparameters dictionary
 and uses that copy for the rest of the operation. While optional, this ensures
 that the hyperparameters used are the same as the ones initialized. 
 
-The following is the definition of `make(config)` called above.
+The following is the definition of `make(config)` called above. The code calls for 
+the `config` copy as opposed to the `hyperparameters` used in `wandb.init`.
 
 ```python
 def make(config):
@@ -236,8 +237,8 @@ Within the training logic, you use the `wandb` functions
 `run.watch()` will log the gradients and the parameters of your model,
 every `log_freq` steps of training.
 
-Before you start training, you call `run.watch`. Then, define your training
-code as normal. This example code iterates backwards and forwards over epochs and batches 
+Before you start training, you call `run.watch()`. Then, define your training
+code as normal. The following code iterates backwards and forwards over epochs and batches 
 while applying an optimizer.
 
 ```python
@@ -282,8 +283,8 @@ def train_batch(images, labels, model, optimizer, criterion):
 
 ## Track additional information with `run.log()`
 
-As opposed to outputting metrics into the terminal, you can use `run.log()` to 
-capture the same metrics. 
+As opposed to outputting metrics into the terminal, `run.log()` can capture
+those same metrics. 
 
 `run.log()` expects a dictionary with strings as keys.
 These strings identify the objects being logged, which make up the values.
@@ -358,9 +359,9 @@ model = model_pipeline(config)
 
 You can see the results of your training operation
 live using the three links this code outputs:
-* The Run page, where your testing results are stored.
-* The Projects page, which organizes runs in a project.
-* Our documentation page.
+1. Our documentation page.
+2. The Projects page, which organizes runs in a project.
+3. The Run page, where your testing results are stored.
 
 On the Run page you access tabs detailing information about your experiment:
 
