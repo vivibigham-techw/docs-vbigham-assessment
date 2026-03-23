@@ -6,7 +6,7 @@ import { ColabLink } from '/snippets/en/_includes/colab-link.mdx';
 
 <ColabLink url="https://colab.research.google.com/github/wandb/examples/blob/master/colabs/pytorch/Simple_PyTorch_Integration.ipynb" />
 
-Use [W&B](https://wandb.ai) for machine learning experiment tracking and project collaboration.
+Use [W&B](https://wandb.ai) for machine learning experiment tracking, dataset versioning, and project collaboration.
 
 <Frame>
     <img src="/images/tutorials/huggingface-why.png" alt="Benefits of using W&B"  />
@@ -14,9 +14,8 @@ Use [W&B](https://wandb.ai) for machine learning experiment tracking and project
 
 ## What this notebook covers
 
-A tutorial for basic integration of W&B into PyTorch for experiment tracking. You will use PyTorch and W&B 
-operations to define a basic model training pipeline, and see the outcome of that training on the 
-W&B interactive dashboard.
+Use the W&B library with PyTorch for experiment tracking.  Define a basic model training pipeline, 
+and see the outcome of that training on the W&B interactive dashboard.
 
 Below is an image of the resulting W&B Interactive Dashboard after our tutorial is completed.
 
@@ -24,17 +23,20 @@ Below is an image of the resulting W&B Interactive Dashboard after our tutorial 
     <img src="/images/tutorials/pytorch.png" alt="PyTorch and W&B integration diagram"  />
 </Frame>
 
+## Example gallery
+
+Explore examples of projects tracked and visualized with W&B in our [Gallery →](https://wandb.ai/wandb/gallery).
 
 ## Getting Started
 
-To start, you will need to install the wandb library via pip.
+To start, install the wandb library via pip.
 
 
 ```python
 !pip install wandb onnx -Uq
 ```
 
-The following snippet establishes the enviroment for the tutorial within the notebook.
+Then establish the tutorial environment for the notebook.
 
 ```python
 import os
@@ -62,7 +64,7 @@ torchvision.datasets.MNIST.mirrors = [mirror for mirror in torchvision.datasets.
                                       if not mirror.startswith("http://yann.lecun.com")]
 ```
 
-In order to log data to our web service,
+In order to log data to the W&B web service,
 you'll need to log in.
 
 If this is your first time using W&B,
@@ -82,15 +84,15 @@ wandb.login()
 The first step of experiment tracking is to define the experiment. You will want to consider
 what hyperparameters you want to test and what metadata is associated with this run.
 
-For this example, you will store your hyperparameter and metadata information in a 
+For this tutorial, you store your hyperparameter and metadata information in a 
 `config` dictionary and access it as needed. Most of your hyperparameters will be 
 fixed. 
 
-You will use the MNIST as your dataset for this tutorial, and you will be provided with a 
+This tutorial uses the MNIST as the training dataset, and provides a
 standard convolutional architecture model in the code examples. The metadata in your `config`
-dictionary will include these details, to help distinguish between runs in the same project. 
+dictionary includes these details, to help distinguish between runs in the same project. 
 
-Below is a code snippet showing the `config` dictionary for this example.
+The following defines the `config` dictionary for this tutorial.
 
 ```python
 config = dict(
@@ -103,17 +105,15 @@ config = dict(
     architecture="CNN")
 ```
 
-With your config data defined, you need to create a model pipeline using that config data.
+Using these hyperparameters, create a model pipeline.
 
-Your model training pipeline will consist of 3 steps:
+This tutorial's model training pipeline will consist of 3 steps:
 
-1. You first `make` a model, plus associated data and optimizer.
+1. You `make` a model, plus associated data and optimizer.
 2. You `train` the model accordingly.
 3. You `test` the model to see the results of training.
 
-The `wandb` library integrates into each part of this process.
-
-Below you'll see an example of defining a model pipeline using `wandb.init`.
+The following defines a pipeline with `wandb.init`.
 
 ```python
 def model_pipeline(hyperparameters):
@@ -136,22 +136,38 @@ def model_pipeline(hyperparameters):
     return model
 ```
 
-Unlike a standard pipeline, `wandb.init` contains all the 
+Unlike a standard pipeline, `wandb.init` handles all the 
 initialization tasks. Calling this function sets up a line of communication
 between your code and our servers.
 
-Passing the `config` dictionary to `wandb.init`
-immediately logs all that information to us,
-so you'll always know what hyperparameter values
-you set your experiment to use.
+Passing the config dictionary to `wandb.init`
+logs your hyperparameter information within the W&B servers.
+You can later access a run's associated hyperparameter details when 
+reviewing your experiments.
 
-The line 'config = run.config' creates a copy of your hyperparameters dictionary
+The line `config = run.config` creates a copy of your hyperparameters dictionary
 and uses that copy for the rest of the operation. While optional, this ensures
 that the hyperparameters used are the same as the ones initialized. 
 
-Below is an example definition of the `make(config)` fucntion called above. Note
-that we use `config.kernals`, `config.classes`, `config.batch_size`, `config.learning_rate` 
-instead of pulling directly from our config dictionary.
+The following is the definition of `make(config)` called above.
+
+```python
+def make(config):
+    # Make the data
+    train, test = get_data(train=True), get_data(train=False)
+    train_loader = make_loader(train, batch_size=config.batch_size)
+    test_loader = make_loader(test, batch_size=config.batch_size)
+
+    # Make the model
+    model = ConvNet(config.kernels, config.classes).to(device)
+
+    # Make the loss and optimizer
+    criterion = nn.CrossEntropyLoss()
+    optimizer = torch.optim.Adam(
+        model.parameters(), lr=config.learning_rate)
+    
+    return model, train_loader, test_loader, criterion, optimizer
+```    
 
 
 
@@ -160,8 +176,7 @@ instead of pulling directly from our config dictionary.
 For PyTorch experiments, you need define your model to process data. Incorporating
 the W&B library does not change the process of model definition. 
 
-The following code snippets define a model using standard ConvNet architecture for 
-the purposes of this tutorial.
+The following code defines a model using standard ConvNet architecture.
 
 
 ```python
@@ -170,7 +185,7 @@ def get_data(slice=5, train=True):
                                               train=train, 
                                               transform=transforms.ToTensor(),
                                               download=True)
-    #  Equivilant to slicing every slice number of steps 
+    #  Equivalent to slicing every slice number of steps 
     sub_dataset = torch.utils.data.Subset(
       full_dataset, indices=range(0, len(full_dataset), slice))
     
@@ -213,9 +228,8 @@ class ConvNet(nn.Module):
 
 ### Define training logic
 
-Moving on in our `model_pipeline`, it's time to specify how we `train`.
-
-Two `wandb` functions come into play here: `watch` and `log`.
+Within the training logic, you use the `wandb` functions 
+`watch` and `log` to monitor experiment information.
 
 ## Track gradients with `run.watch()`
 
@@ -223,7 +237,7 @@ Two `wandb` functions come into play here: `watch` and `log`.
 every `log_freq` steps of training.
 
 Before you start training, you call `run.watch`. Then, define your training
-code as normal. In this example the training code iterates over epochs and batches 
+code as normal. This example code iterates backwards and forwards over epochs and batches 
 while applying an optimizer.
 
 ```python
@@ -275,7 +289,7 @@ capture the same metrics.
 These strings identify the objects being logged, which make up the values.
 You can also log which `step` of training you're on.
 
-In this tutorial the logging code is checking for `epoch` and `loss`. The code checks based on the number
+This logging code is checking for `epoch` and `loss`. The code checks based on the number
 of examples the model has seen, for ease comparison across batch sizes. You may also consider logging based 
 on raw step count, batch count, or `epoch` for longer training runs.
 
@@ -294,7 +308,17 @@ def train_log(loss, example_ct, epoch):
 After completing training you will test the model against the example
 MNIST dataset.
 
-Below is a code sample for defining our testing logic. 
+## (Optional) Call `run.save()`
+
+Within the testing logic, you can save your model's final parameters and 
+architecture to disk. Passing your model's filename to `run.save()` saves the model parameters
+to W&B's servers.
+
+For this tutorial, you'll `export` your model in the
+[Open Neural Network eXchange (ONNX) format](https://onnx.ai/).
+
+For more advanced `wandb` features for storing, versioning, and distributing
+models, see [Artifacts tools](https://www.wandb.com/artifacts).
 
 ```python
 def test(model, test_loader):
@@ -321,53 +345,36 @@ def test(model, test_loader):
         run.save("model.onnx")
 ```
 
-## (Optional) Call `run.save()`
 
-This is also a great time to save the model's architecture
-and final parameters to disk.
-For maximum compatibility, we'll `export` our model in the
-[Open Neural Network eXchange (ONNX) format](https://onnx.ai/).
-
-Passing your model's filename to `run.save()` saves the model parameters
-to W&B's servers. This allows you to access your 
-
-For more advanced `wandb` features for storing, versioning, and distributing
-models, see [Artifacts tools](https://www.wandb.com/artifacts).
-
-
-
-### Run training and watch your metrics live on wandb.ai
+### Run training and watch metrics
 
 After defining your pipeline, you can observe a fully tracked 
-experiment.
-
-This example code will output several links:
-1. The Run page, where your testing results are stored.
-2. The Projects page, which organizes runs in a project.
-3. Our documentation page.
-
-On the Run page there are several tabs detailing information about your experiment:
-
-1. **Charts**, where the model gradients, parameter values, and loss are logged throughout training.
-2. **System**, which contains a variety of system metrics, including Disk I/O utilization, and CPU and GPU metrics.
-3. **Logs**, which has a copy of anything pushed to standard out during training.
-4. **Files**, where, once training is complete, you can click on the `model.onnx` to view our network with the [Netron model viewer](https://github.com/lutzroeder/netron).
-
-When the `with wandb.init` block in the previous example exits, you will also see 
-a summary of results in cell format.
-
+experiment. Run your experiment using the following code.
 
 ```python
 # Build, train and analyze the model with the pipeline
 model = model_pipeline(config)
 ```
 
-## Example gallery
+You can see the results of your training operation
+live using the three links this code outputs:
+* The Run page, where your testing results are stored.
+* The Projects page, which organizes runs in a project.
+* Our documentation page.
 
-Explore examples of projects tracked and visualized with W&B in our [Gallery →](https://wandb.ai/wandb/gallery).
+On the Run page you access tabs detailing information about your experiment:
+
+* **Charts**, where the model gradients, parameter values, and loss are logged throughout training.
+* **System**, which contains a variety of system metrics, including Disk I/O utilization, and CPU and GPU metrics.
+* **Logs**, which has a copy of anything pushed to standard out during training.
+* **Files**, where, once training is complete, you can click on the `model.onnx` to view our network with the [Netron model viewer](https://github.com/lutzroeder/netron).
+
+When the `with wandb.init` block in `def test` exits, you will also see 
+a summary of results in cell format.
+
 
 ## Advanced setup
 1. [Environment variables](/platform/hosting/env-vars/): Set API keys in environment variables so you can run training on a managed cluster.
 2. [Offline mode](/models/support/run_wandb_offline/): Use `dryrun` mode to train offline and sync results later.
-3. [On-prem](/platform/hosting/hosting-options/self-managed): Install W&B in a private cloud or air-gapped servers in your own infrastructure. We have local installations for everyone from academics to enterprise teams.
+3. [On-prem](/platform/hosting/hosting-options/self-managed): Install W&B in a private cloud or air-gapped servers in your own infrastructure.
 4. [Sweeps](/models/sweeps/): Set up hyperparameter search quickly with our lightweight tool for tuning.
